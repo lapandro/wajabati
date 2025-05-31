@@ -1,1 +1,275 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>تطبيق Wajabati</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif; /* استخدام خط Inter */
+      direction: rtl;
+      background-color: #fdf2e9; /* لون خلفية فاتح ودافئ */
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    .container {
+      background-color: #ffffff;
+      padding: 30px;
+      border-radius: 15px; /* حواف مستديرة */
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* ظل خفيف */
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    h2 {
+      color: #e67e22; /* لون برتقالي جذاب */
+      margin-bottom: 25px;
+      font-size: 1.8em;
+      font-weight: bold;
+    }
+    input, select, button {
+      padding: 12px;
+      margin: 8px 0;
+      width: calc(100% - 16px); /* لضمان التوافق مع البادينغ */
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 8px; /* حواف مستديرة للمدخلات والأزرار */
+      font-size: 1em;
+      text-align: right; /* محاذاة النص لليمين */
+    }
+    button {
+      background-color: #e67e22;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease; /* تأثيرات عند التفاعل */
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+    button:hover {
+      background-color: #d35400; /* لون أغمق عند التحويم */
+      transform: translateY(-2px); /* رفع خفيف للزر */
+    }
+    p {
+      margin-top: 15px;
+      color: #555;
+    }
+    a {
+      color: #e67e22;
+      text-decoration: none;
+      font-weight: bold;
+      transition: color 0.3s ease;
+    }
+    a:hover {
+      color: #d35400;
+    }
+    .hidden {
+      display: none;
+    }
+
+    /* Custom Modal Styles */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 400px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .modal-content button {
+      background-color: #e67e22;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      width: auto; /* Override full width for modal buttons */
+    }
+    .modal-content button.cancel {
+      background-color: #ccc;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loginSection">
+      <h2>🔐 تسجيل الدخول</h2>
+      <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" />
+      <input type="password" id="loginPassword" placeholder="كلمة المرور" />
+      <button id="loginBtn">دخول</button>
+      <p>ليس لديك حساب؟ <a href="#" onclick="toggleForms()">إنشاء حساب</a></p>
+    </div>
+
+    <div id="signupSection" class="hidden">
+      <h2>📝 إنشاء حساب</h2>
+      <input type="text" id="fullName" placeholder="الاسم الكامل" />
+      <input type="text" id="phone" placeholder="رقم الهاتف" />
+      <input type="email" id="signupEmail" placeholder="البريد الإلكتروني" />
+      <input type="password" id="signupPassword" placeholder="كلمة المرور" />
+      <input type="password" id="confirmPassword" placeholder="تأكيد كلمة المرور" />
+      <select id="role">
+        <option value="client">زبون</option>
+        <option value="admin">صاحب وجبات</option>
+      </select>
+      <button id="signupBtn">تسجيل</button>
+      <p>لديك حساب؟ <a href="#" onclick="toggleForms()">العودة لتسجيل الدخول</a></p>
+    </div>
+  </div>
+
+  <div id="customAlertModal" class="modal">
+    <div class="modal-content">
+      <p id="alertMessage"></p>
+      <button onclick="hideCustomAlert()">حسناً</button>
+    </div>
+  </div>
+
+  <div id="customConfirmModal" class="modal">
+    <div class="modal-content">
+      <p id="confirmMessage"></p>
+      <button id="confirmYes">نعم</button>
+      <button id="confirmNo" class="cancel">إلغاء</button>
+    </div>
+  </div>
+
+  <script type="module">
+    // استيراد وظائف Firebase الضرورية
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+    import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+    // إعدادات Firebase لمشروع Wajabati
+    const firebaseConfig = {
+      apiKey: "AIzaSyAofstVnfa6b04e3rfMLMs9dY63_OzG9QU", // قم بتحديث هذا بمفتاح API الخاص بك
+      authDomain: "wajabati.firebaseapp.com",
+      databaseURL: "https://wajabati-default-rtdb.firebaseio.com",
+      projectId: "wajabati",
+      storageBucket: "wajabati.appspot.com",
+      messagingSenderId: "953258977497",
+      appId: "1:953258977497:web:b6eca5c56850d82c29b6c8"
+    };
+
+    // تهيئة Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // وظائف مخصصة للتنبيه والتأكيد بدلاً من alert() و confirm()
+    function showCustomAlert(message) {
+      document.getElementById('alertMessage').textContent = message;
+      document.getElementById('customAlertModal').style.display = 'flex';
+    }
+
+    function hideCustomAlert() {
+      document.getElementById('customAlertModal').style.display = 'none';
+    }
+
+    function showCustomConfirm(message, callback) {
+      document.getElementById('confirmMessage').textContent = message;
+      document.getElementById('customConfirmModal').style.display = 'flex';
+
+      document.getElementById('confirmYes').onclick = () => {
+        hideCustomConfirm();
+        callback(true);
+      };
+      document.getElementById('confirmNo').onclick = () => {
+        hideCustomConfirm();
+        callback(false);
+      };
+    }
+
+    function hideCustomConfirm() {
+      document.getElementById('customConfirmModal').style.display = 'none';
+    }
+
+    // معالج حدث زر تسجيل الدخول
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then(userCredential => {
+          const uid = userCredential.user.uid;
+          get(child(ref(db), `users/${uid}`))
+            .then(snapshot => {
+              if (snapshot.exists()) {
+                const role = snapshot.val().role;
+                if (role === "client") {
+                  window.location.href = "client.html"; // توجيه الزبون لصفحة الزبون
+                } else if (role === "admin") {
+                  window.location.href = "admin.html"; // توجيه صاحب الوجبات لصفحة الإدارة
+                }
+              }
+            })
+            .catch(e => showCustomAlert("❌ فشل جلب دور المستخدم: " + e.message));
+        })
+        .catch(e => showCustomAlert("❌ فشل الدخول: " + e.message)); // استخدام التنبيه المخصص
+    });
+
+    // معالج حدث زر إنشاء الحساب
+    document.getElementById("signupBtn").addEventListener("click", () => {
+      const name = document.getElementById("fullName").value;
+      const phone = document.getElementById("phone").value;
+      const email = document.getElementById("signupEmail").value;
+      const password = document.getElementById("signupPassword").value;
+      const confirm = document.getElementById("confirmPassword").value;
+      const role = document.getElementById("role").value;
+
+      if (password !== confirm) {
+        showCustomAlert("❌ كلمة المرور غير متطابقة"); // استخدام التنبيه المخصص
+        return;
+      }
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then(userCredential => {
+          const uid = userCredential.user.uid;
+          // حفظ بيانات المستخدم في قاعدة البيانات
+          set(ref(db, `users/${uid}`), {
+            name: name,
+            phone: phone,
+            email: email,
+            role: role
+          }).then(() => {
+            // إذا كان الدور "admin"، قم بإنشاء إدخال له في "vendors"
+            if (role === "admin") {
+              set(ref(db, `vendors/${uid}`), { name: name });
+            }
+            showCustomAlert("✅ تم إنشاء الحساب، يمكنك تسجيل الدخول الآن"); // استخدام التنبيه المخصص
+            toggleForms(); // التبديل إلى نموذج تسجيل الدخول
+          }).catch(e => showCustomAlert("❌ فشل حفظ بيانات المستخدم: " + e.message));
+        })
+        .catch(e => showCustomAlert("❌ فشل التسجيل: " + e.message)); // استخدام التنبيه المخصص
+    });
+
+    // وظيفة التبديل بين نماذج تسجيل الدخول وإنشاء الحساب
+    window.toggleForms = function () {
+      document.getElementById("loginSection").classList.toggle("hidden");
+      document.getElementById("signupSection").classList.toggle("hidden");
+    }
+  </script>
+</body>
+</html>
+
 
