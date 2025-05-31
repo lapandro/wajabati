@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة تحكم الوجبات - Wajabati</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif; /* استخدام خط Inter */
+      direction: rtl;
+      background-color: #fdf2e9; /* لون خلفية فاتح ودافئ */
+      padding: 20px;
+      box-sizing: border-box;
+      color: #333;
+    }
+    h2, h3 {
+      color: #e67e22; /* لون برتقالي جذاب */
+      margin-bottom: 20px;
+      font-size: 1.8em;
+      font-weight: bold;
+      text-align: center;
+    }
+    .stats {
+      background: #ffffff;
+      padding: 15px;
+      margin: 15px 0;
+      border: 1px solid #e67e22;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+    .stats p {
+      margin: 8px 0;
+      font-size: 1.1em;
+    }
+    .stats label {
+      margin: 0 10px;
+      font-weight: bold;
+    }
+    .stats input[type="date"] {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      background-color: #ffffff;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    table, th, td {
+      border: 1px solid #eee;
+    }
+    th, td {
+      padding: 12px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #f5f5f5;
+      color: #e67e22;
+      font-weight: bold;
+    }
+    input[type="text"], input[type="number"], input[type="date"] {
+      width: calc(100% - 16px);
+      padding: 10px;
+      margin: 8px 0;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1em;
+      text-align: right;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      background-color: #e67e22;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+    button:hover {
+      background-color: #d35400;
+      transform: translateY(-2px);
+    }
+    .order {
+      background: #ffffff;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+      border-right: 5px solid #27ae60; /* شريط جانبي أخضر للطلبات */
+    }
+    .order ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 10px 0 0 0;
+    }
+    .order ul li {
+      padding: 5px 0;
+      border-bottom: 1px dashed #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .order ul li:last-child {
+      border-bottom: none;
+    }
+    hr {
+      border: none;
+      border-top: 1px dashed #ccc;
+      margin: 30px 0;
+    }
+
+    /* Custom Modal Styles */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 400px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .modal-content button {
+      background-color: #e67e22;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+      width: auto; /* Override full width for modal buttons */
+    }
+    .modal-content button.cancel {
+      background-color: #ccc;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 لوحة تحكم الطلبات</h2>
+
+  <div class="stats">
+    <p>📦 عدد الطلبات: <span id="totalOrders">0</span></p>
+    <p>💰 إجمالي المبيعات: <span id="totalRevenue">0</span> ريال</p>
+    <label>من: <input type="date" id="dateFrom" /></label>
+    <label>إلى: <input type="date" id="dateTo" /></label>
+    <button onclick="loadOrders()">🔍 تصفية</button>
+  </div>
+
+  <h3>📦 الطلبات الواردة</h3>
+  <button onclick="printOrders()">🖨️ طباعة الطلبات PDF</button>
+  <div id="orderList"></div>
+
+  <h3>📋 إجماليات حسب الزبائن</h3>
+  <div id="summaryTable"></div>
+
+  <hr>
+
+  <h3>➕ إضافة صنف جديد</h3>
+  <input type="text" id="newName" placeholder="اسم الصنف" />
+  <input type="number" id="newPrice" placeholder="السعر بالريال" />
+  <input type="text" id="newUnit" placeholder="الوحدة (مثلاً: حبة)" />
+  <button onclick="addMenuItem()">إضافة إلى القائمة</button>
+
+  <h3>📋 قائمة الوجبات</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>الاسم</th>
+        <th>الوحدة</th>
+        <th>السعر</th>
+        <th>تحديث</th>
+        <th>حذف</th>
+      </tr>
+    </thead>
+    <tbody id="menuTable"></tbody>
+  </table>
+
+  <audio id="notifSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3" preload="auto"></audio>
+
+  <div id="customAlertModal" class="modal">
+    <div class="modal-content">
+      <p id="alertMessage"></p>
+      <button onclick="hideCustomAlert()">حسناً</button>
+    </div>
+  </div>
+
+  <div id="customConfirmModal" class="modal">
+    <div class="modal-content">
+      <p id="confirmMessage"></p>
+      <button id="confirmYes">نعم</button>
+      <button id="confirmNo" class="cancel">إلغاء</button>
+    </div>
+  </div>
+
+  <script type="module">
+    // استيراد وظائف Firebase الضرورية
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+    import { getDatabase, ref, onValue, get, push, update, remove } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
+
+    // إعدادات Firebase لمشروع Wajabati
+    const firebaseConfig = {
+      apiKey: "AIzaSyAofstVnfa6b04e3rfMLMs9dY63_OzG9QU", // قم بتحديث هذا بمفتاح API الخاص بك
+      authDomain: "wajabati.firebaseapp.com",
+      databaseURL: "https://wajabati-default-rtdb.firebaseio.com",
+      projectId: "wajabati",
+      storageBucket: "wajabati.appspot.com",
+      messagingSenderId: "953258977497",
+      appId: "1:953258977497:web:b6eca5c56850d82c29b6c8"
+    };
+
+    // تهيئة Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let currentVendorId = null;
+    let previousOrderCount = 0; // تم تغيير الاسم لتجنب الالتباس
+
+    // وظائف مخصصة للتنبيه والتأكيد بدلاً من alert() و confirm()
+    function showCustomAlert(message) {
+      document.getElementById('alertMessage').textContent = message;
+      document.getElementById('customAlertModal').style.display = 'flex';
+    }
+
+    function hideCustomAlert() {
+      document.getElementById('customAlertModal').style.display = 'none';
+    }
+
+    function showCustomConfirm(message, callback) {
+      document.getElementById('confirmMessage').textContent = message;
+      document.getElementById('customConfirmModal').style.display = 'flex';
+
+      document.getElementById('confirmYes').onclick = () => {
+        hideCustomConfirm();
+        callback(true);
+      };
+      document.getElementById('confirmNo').onclick = () => {
+        hideCustomConfirm();
+        callback(false);
+      };
+    }
+
+    function hideCustomConfirm() {
+      document.getElementById('customConfirmModal').style.display = 'none';
+    }
+
+    // مراقبة حالة المصادقة
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        currentVendorId = user.uid;
+        loadOrders(); // تحميل الطلبات
+        loadMyMenu(); // تحميل قائمة الطعام الخاصة بالمزود
+      } else {
+        showCustomAlert("❌ يجب تسجيل الدخول أولاً كصاحب وجبات"); // استخدام التنبيه المخصص
+        window.location.href = "index.html"; // توجيه المستخدم لصفحة تسجيل الدخول
+      }
+    });
+
+    // تحميل الطلبات الواردة
+    function loadOrders() {
+      const ordersRef = ref(db, "orders");
+      onValue(ordersRef, snapshot => {
+        const orderList = document.getElementById("orderList");
+        const summaryTable = document.getElementById("summaryTable");
+        orderList.innerHTML = "";
+        summaryTable.innerHTML = "";
+        let orderCounter = 0;
+        let totalRevenue = 0;
+        let newOrdersThisFetch = 0; // عداد للطلبات الجديدة في هذه الجلبة
+        const summaries = {};
+
+        // الحصول على نطاق التاريخ من المدخلات
+        const fromDate = document.getElementById("dateFrom").value;
+        const toDate = document.getElementById("dateTo").value;
+        const from = fromDate ? new Date(fromDate).getTime() : 0;
+        const to = toDate ? new Date(toDate).getTime() : Date.now();
+
+        snapshot.forEach(userSnap => {
+          const uid = userSnap.key; // معرف المستخدم الذي قدم الطلب
+          userSnap.forEach(orderSnap => {
+            const order = orderSnap.val();
+            // تصفية الطلبات حسب مزود الوجبات الحالي ونطاق التاريخ
+            if (order.vendor === currentVendorId && order.time >= from && order.time <= to) {
+              newOrdersThisFetch++;
+              orderCounter++;
+              const div = document.createElement("div");
+              div.className = "order";
+              const itemLines = (order.items || []).map(i => {
+                totalRevenue += (i.price * i.quantity);
+                if (!summaries[uid]) summaries[uid] = { total: 0, count: 0 };
+                summaries[uid].total += i.price * i.quantity;
+                summaries[uid].count++;
+                return `<li>${i.name} × ${i.quantity} ${i.unit} - ${i.price} ريال</li>`;
+              }).join("");
+              div.innerHTML = `
+                👤 <strong>الزبون:</strong> ${uid}<br>
+                🍱 <strong>الأصناف:</strong><ul>${itemLines}</ul>
+                📝 <strong>ملاحظات:</strong> ${order.customNote || "-"}<br>
+                ⏰ <small>${new Date(order.time).toLocaleString()}</small>
+              `;
+              orderList.prepend(div); // إضافة الطلب في بداية القائمة
+            }
+          });
+        });
+
+        document.getElementById("totalOrders").textContent = orderCounter;
+        document.getElementById("totalRevenue").textContent = totalRevenue;
+
+        // إنشاء جدول الملخص حسب الزبائن
+        const table = document.createElement("table");
+        table.innerHTML = `<tr><th>الزبون</th><th>عدد الطلبات</th><th>الإجمالي</th></tr>`;
+        Object.entries(summaries).forEach(([uid, sum]) => {
+          table.innerHTML += `<tr><td>${uid}</td><td>${sum.count}</td><td>${sum.total} ريال</td></tr>`;
+        });
+        summaryTable.appendChild(table);
+
+        // تشغيل صوت الإشعار إذا كان هناك طلبات جديدة
+        if (newOrdersThisFetch > previousOrderCount && previousOrderCount !== 0) { // تجنب التشغيل عند التحميل الأولي
+          document.getElementById("notifSound").play();
+        }
+        previousOrderCount = newOrdersThisFetch; // تحديث عدد الطلبات السابق
+      });
+    }
+
+    // طباعة تقرير الطلبات بصيغة PDF
+    function printOrders() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+      doc.setFont("Arial"); // قد تحتاج إلى تضمين خط يدعم العربية
+      doc.text("تقرير الطلبات - Wajabati", 105, y, { align: "center" });
+      y += 10;
+      document.querySelectorAll(".order").forEach(el => {
+        doc.text(el.textContent, 10, y, { maxWidth: 190 });
+        y += 40; // زيادة المسافة بين الطلبات
+      });
+      doc.save("orders-report-wajabati.pdf");
+    }
+
+    // تحميل قائمة الطعام الخاصة بالمزود الحالي
+    function loadMyMenu() {
+      const menuTable = document.getElementById("menuTable");
+      menuTable.innerHTML = ""; // مسح القائمة الحالية
+      get(ref(db, `menus/${currentVendorId}`)).then(snapshot => {
+        if (snapshot.exists()) {
+          const items = snapshot.val();
+          Object.entries(items).forEach(([key, item]) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+              <td><input type="text" value="${item.name}" id="name-${key}" /></td>
+              <td><input type="text" value="${item.unit}" id="unit-${key}" /></td>
+              <td><input type="number" value="${item.price}" id="price-${key}" /></td>
+              <td><button onclick="updateMenuItem('${key}')">💾</button></td>
+              <td><button onclick="deleteMenuItem('${key}')">🗑️</button></td>
+            `;
+            menuTable.appendChild(row);
+          });
+        } else {
+          menuTable.innerHTML = '<tr><td colspan="5">🚫 لا توجد قائمة طعام.</td></tr>';
+        }
+      });
+    }
+
+    // إضافة صنف جديد إلى القائمة
+    window.addMenuItem = function () {
+      const name = document.getElementById("newName").value.trim();
+      const price = parseFloat(document.getElementById("newPrice").value);
+      const unit = document.getElementById("newUnit").value.trim();
+      if (!name || isNaN(price) || !unit) {
+        showCustomAlert("❗ يرجى ملء جميع الحقول بشكل صحيح"); // استخدام التنبيه المخصص
+        return;
+      }
+      push(ref(db, `menus/${currentVendorId}`), { name, price, unit }).then(() => {
+        showCustomAlert("✅ تم إضافة الصنف"); // استخدام التنبيه المخصص
+        document.getElementById("newName").value = "";
+        document.getElementById("newPrice").value = "";
+        document.getElementById("newUnit").value = "";
+        loadMyMenu(); // إعادة تحميل القائمة
+      });
+    }
+
+    // تحديث صنف موجود في القائمة
+    window.updateMenuItem = function (key) {
+      const name = document.getElementById(`name-${key}`).value.trim();
+      const price = parseFloat(document.getElementById(`price-${key}`).value);
+      const unit = document.getElementById(`unit-${key}`).value.trim();
+      if (!name || isNaN(price) || !unit) {
+        showCustomAlert("❗ يرجى التأكد من صحة البيانات"); // استخدام التنبيه المخصص
+        return;
+      }
+      update(ref(db, `menus/${currentVendorId}/${key}`), { name, price, unit }).then(() => {
+        showCustomAlert("✅ تم التحديث بنجاح"); // استخدام التنبيه المخصص
+        loadMyMenu(); // إعادة تحميل القائمة
+      });
+    }
+
+    // حذف صنف من القائمة
+    window.deleteMenuItem = function (key) {
+      showCustomConfirm("هل أنت متأكد من حذف هذا الصنف؟", (result) => { // استخدام التأكيد المخصص
+        if (result) {
+          remove(ref(db, `menus/${currentVendorId}/${key}`)).then(() => {
+            showCustomAlert("🗑️ تم الحذف"); // استخدام التنبيه المخصص
+            loadMyMenu(); // إعادة تحميل القائمة
+          });
+        }
+      });
+    }
+  </script>
+</body>
+</html>
+
